@@ -12,3 +12,5 @@ install(TARGETS homework_08
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 
+find_package(Threads REQUIRED)
+target_link_libraries(homework_08 Threads::Threads)

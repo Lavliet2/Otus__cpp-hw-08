@@ -9,6 +9,7 @@
 #include <chrono>
 #include <filesystem>
 
+
 std::unordered_map<std::string, int> wordCountMap;
 std::mutex wordCountMutex;
 
@@ -54,7 +55,7 @@ std::string newFile(const std::vector<std::string> &fileNames)
             continue;
         }
 
-        output << "Contents of " << inputFile << ":\n";
+//        output << "Contents of " << inputFile << ":\n";
 
         std::string line;
         while ( std::getline(input, line) ) {
@@ -70,10 +71,8 @@ std::string newFile(const std::vector<std::string> &fileNames)
 
 int main()
 {
-
     // Введите пути к фалам
     std::vector<std::string> fileNames;
-    fileNames.push_back("C:\\temp\\1.txt");
     fileNames.push_back("C:\\temp\\1.txt");
     fileNames.push_back("C:\\temp\\1.txt");
     fileNames.push_back("C:\\temp\\2.txt");
@@ -82,10 +81,9 @@ int main()
 
     std::string filename = newFile(fileNames);
 
+
     const int numThreads = 4; // Количество потоков
-
-
-    auto start = std::chrono::high_resolution_clock::now();
+    auto startTime = std::chrono::high_resolution_clock::now();
     std::ifstream file(filename, std::ios::ate);
     if ( ! file.is_open() ) {
         std::cerr << "Не удалось открыть единый фалйл: " << filename << std::endl;
@@ -94,22 +92,35 @@ int main()
 
     std::streampos fileSize = file.tellg();
     file.close();
-
     std::vector<std::thread> threads;
-    std::vector<std::streampos> positions(numThreads + 1);
 
-    for ( int i = 0; i <= numThreads; ++i ) {
-        positions[i] = (fileSize / numThreads) * i;
+    int chunkSize = fileSize / numThreads;
+    int start = 0;
+    int end = chunkSize;
+
+    for (int i = 0; i < numThreads; ++i) {
+        if (i == numThreads - 1) {
+            end = fileSize; // Last thread handles the remaining portion
+        }
+
+        threads.emplace_back(countWords, filename, start, end);
+
+        start = end;
+        end += chunkSize;
     }
 
-    for ( int i = 0; i < numThreads; ++i ) {
-        threads.emplace_back(countWords, filename, positions[i], positions[i + 1]);
-    }
+//    std::vector<std::streampos> positions(numThreads + 1);
+//    for ( int i = 0; i <= numThreads; ++i ) {
+//        positions[i] = (fileSize / numThreads) * i;
+//    }
+
+//    for ( int i = 0; i < numThreads; ++i ) {
+//        threads.emplace_back(countWords, filename, positions[i], positions[i + 1]);
+//    }
 
     for ( auto &thread : threads ) {
         thread.join();
     }
-
     // Сортировка и вывод результатов
     std::vector<std::pair<std::string, int>> sortedWords(wordCountMap.begin(), wordCountMap.end());
     std::sort(sortedWords.begin(), sortedWords.end(), [](const auto &a, const auto &b) {
@@ -121,12 +132,12 @@ int main()
         std::cout << sortedWords[i].first << ": " << sortedWords[i].second << std::endl;
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime);
 
     std::filesystem::remove(filename);
 
-
     std::cout << "Время выполнения: " << duration.count() << " микросекунд" << std::endl;
     return 0;
+
 }
